@@ -1,0 +1,1168 @@
+--!nolint UnknownGlobals
+while game.GameId == 0 do task.wait() end
+if game.GameId ~= 1054526971 then return end
+warn(pcall(function()
+    local startTime = os.time()
+
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/MeenoWare/include/main/leeeekoxx"))()
+
+    clear()
+	title("MeenoWare 01/07/22")
+    printwelcome()
+    info("Loading MeenoWare!")
+    local isInMenu = false
+    local isOpenWorld = false
+	while game:GetService("Players").PreferredPlayersInternal == 0 do task.wait() end
+    if game:GetService("Players").PreferredPlayersInternal == 1 then
+        title("Blackhawk Rescue Mission 5 - MeenoWare - Menu")
+        info("You are in the menu :D")
+        isInMenu = true
+    elseif game.PlaceId == 3701546109 then
+        title("Blackhawk Rescue Mission 5 - MeenoWare - Open World")
+        info("You are in the open world :p")
+        isInMenu = false
+        isOpenWorld = true
+    else
+        title("Blackhawk Rescue Mission 5 - MeenoWare - In Game")
+        info("You are in a match :3")
+        isInMenu = false
+    end
+
+    while not game:GetService("ReplicatedStorage") do task.wait() end
+
+    local replicatedstorage = game:GetService("ReplicatedStorage")
+    local teleportservice = game:GetService("TeleportService")
+    local httpservice = game:GetService("HttpService")
+    local runservice = game:GetService("RunService")
+    local lighting = game:GetService("Lighting")
+
+    local o = {}
+    o.do_debug = true
+    -- // Game options
+    o.walkspeed = 14
+    o.do_chatspam = false
+    o.do_noclip = false
+    o.chatspam_message = "MeenoWare winning!"
+    o.do_esp = false
+    o.esp_highlighttarget = false
+    o.esp_highlightcolor = Color3.new(1, 1, 0)
+    o.esp_teamcolor = Color3.new(1, 1, 1)
+    o.esp_enemycolor = Color3.new(0, 0.8, 1)
+    o.esp_visiblecolor = Color3.new(0, 1, 0.4)
+    o.do_rainbowsky = false
+    o.esp_showteammates = false
+    o.esp_text = false
+    o.do_silentaim = false
+    o.do_fullbright = false
+    o.mod_recoil = 35
+    o.mod_rpm = 800
+    o.mod_velocity = 1500
+    o.mod_range = 1340
+    o.bullet_multiplier = 1
+    o.do_alwaysauto = false
+    o.do_autoreload = false
+    o.do_bhop = false
+    o.usefov = false
+    o.spinbot = "Off"
+    o.do_alwayscanshoot = false
+    o.fov = 70
+    o.do_autoshoot = false
+    o.autoshoot_mode = "Internal"
+
+    -- // Lobby options
+    o.lobby = setmetatable({}, {})
+    o.lobby.do_autoqueue = false
+    o.lobby.autoqueuemode = "5v5"
+    o.lobby.autoqueuetimeout = 90
+    o.lobby.do_invitespam = false
+    o.lobby.invitespam_uid = 1
+    o.lobby.spoof_elolocal = false
+    o.lobby.skip_intro = false
+
+    local defaults = o
+    --// Save/Load
+    local fn = "meenoware_settings.brm5.json"
+    function saveOptions()
+        local str = httpservice:JSONEncode(o)
+        local suc, err = pcall(writefile, fn, str)
+        if not suc then
+            messagebox(tostring(err), "An error ocurred", 0)
+        end
+    end
+    do -- load settings
+        local suc, err = pcall(function()
+            local _o = httpservice:JSONDecode(readfile(fn))
+            o = _o
+            for key, value in pairs(defaults) do
+                if o[key] == nil then
+                    o[key] = value
+                end
+            end
+        end)
+        if not suc then
+            --messagebox(tostring(err), "Failed to load config", 0)
+        end
+    end
+
+    local arrivingData = teleportservice:GetLocalPlayerTeleportData()
+    function rejoin(sameInstance)
+        if not sameInstance then
+            teleportservice:Teleport(game.PlaceId, localplayer)
+        else
+            teleportservice:TeleportToPlaceInstance(game.PlaceId, game.JobId, localplayer, nil, teleportservice:GetLocalPlayerTeleportData())
+        end
+    end
+
+    local closestPlayer = nil
+
+	local ClassOverrides = {}
+    ---------------------------------------------------
+	info("Hooking global __namecall")
+    OldNameCall = hookmetamethod(game, "__namecall", newcclosure(function(Event, ...)
+        local args = {...}
+        if not checkcaller() then
+            if args[1] == "Discharge" then
+                --info(Event, ...)
+            elseif Event.ClassName == "TeleportService" then
+                local method = getnamecallmethod()
+                if method == "GetLocalPlayerTeleportData" then
+                    local data = arrivingData or {}
+                    if o.lobby.spoof_elolocal then
+                        data.elo = 99999999999
+                        data.won = true
+                        data.to = 99999999999
+                    end
+                    if o.lobby.skip_intro then
+                        data.message = "Thank you for using MeenoWare :3"
+                    end
+                    return data
+                end
+            end
+            --info(Event, ...)
+        end
+        return OldNameCall(Event, ...)
+    end))
+    ---------------------------------------------------
+
+    function WaitForModule(name)
+        repeat
+            local modules = getloadedmodules()
+            for _, script in pairs(modules) do
+                if script.Name == name then
+                    return script
+                end
+            end
+        until not wait()
+    end
+    function WaitForClassModule(name)
+        repeat
+            local modules = getloadedmodules()
+            for _, script in pairs(modules) do
+                if script.Name == "index" and script.Parent.Name == name then
+                    return script
+                end
+            end
+        until not wait()
+    end
+    function GetNilParented(name)
+        local nils = getnilinstances()
+        for _, n in pairs(nils) do
+            if n and n.Name and n.Name:match(name) then
+                return n
+            end
+        end
+        return nil
+    end
+
+    info("Get players")
+    local players = game:GetService("Players")
+    info("Get localplayer")
+    while players.LocalPlayer == nil do wait() end
+    local localplayer = players.LocalPlayer
+    local coregui_parent = game:GetService("CoreGui"):WaitForChild("RobloxGui")
+    ok("Got " .. localplayer.Name)
+    info("Get mouse")
+    local mouse = localplayer:GetMouse()
+
+    local visible_characters = {}
+
+    do
+        local proxy = Instance.new("Camera")
+        function W2S(Cam, Vec3)
+            return proxy.WorldToScreenPoint(Cam, Vec3)
+        end
+    end
+    function ClosestPlayerToMouse()
+        local target = nil
+        local dist = math.huge
+        for i, v in pairs(players:GetPlayers()) do
+            if v ~= localplayer then
+                if v.Character and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health ~= 0 and v.Character:FindFirstChild("HumanoidRootPart") and v.TeamColor ~= localplayer.TeamColor then
+                    local screenpoint = W2S(workspace.CurrentCamera, v.Character.HumanoidRootPart.Position)
+                    local check = (Vector2.new(mouse.X, mouse.Y) - Vector2.new(screenpoint.X, screenpoint.Y)).magnitude
+                    if check < dist then
+                        target  = v.Character
+                        dist = check
+                    end
+                end
+            end
+        end
+        return target
+    end
+    function GetPlayersWithinFOV()
+        local playerlist = {}
+        for _, player in ipairs(players:GetPlayers()) do
+            if player and player.TeamColor ~= localplayer.TeamColor and player ~= localplayer and player.Character and player.Character.Head then
+                local head = player.Character and player.Character:FindFirstChild("Head")
+                if (head) then
+                    local _, visible = W2S(workspace.CurrentCamera, head.Position)
+                    if (visible) then
+                        table.insert(playerlist, head)
+                    end
+                end
+            end
+        end
+        return playerlist
+    end
+
+    ---------------------------------------------------
+    local string_key, num_key do
+        local function get_upvalue(func, idx)
+            return select(2, pcall(debug.getupvalue, func, idx))
+        end
+        info("Waiting for security keys")
+        repeat
+            task.wait()
+            for _, tbl in next, getgc(true) do
+                if type(tbl) == "function"
+                and islclosure(tbl)
+                and not is_synapse_function(tbl)
+                then
+                    local f_info = debug.getinfo(tbl)
+                    if f_info.short_src:match("Flux/%w+")
+                    and f_info.is_vararg == 1
+                    then
+                        local up4 = get_upvalue(tbl, 4)
+                        local up5 = get_upvalue(tbl, 5)
+                        if type(up4) == "string"
+                        and type(up5) == "string"
+                        and up4:match("%w+%-%w+%-%w+%-%w+%-%w+")
+                        and up5:match("%[%d+,%d+,%d+,%d+,%d+]")
+                        then
+                            string_key = up4
+                            num_key = up5
+                            break
+                        end
+                    end
+                end
+            end
+        until
+            string_key
+        and num_key
+        ok("Got", string_key)
+        ok("Got", num_key)
+    end
+    ---------------------------------------------------
+    local currentGun
+    ---------------------------------------------------
+    info("Starting Flux emulator")
+    local import do -- FluxClient Emulator
+        local last_identity = syn.get_thread_identity();
+        syn.set_thread_identity(2);
+        task.wait();
+        local l__ReplicatedStorage__1 = game:GetService("ReplicatedStorage");
+        local l__Events__3 = l__ReplicatedStorage__1:WaitForChild("Events");
+        local function u1(p1, p2, p3)
+            return string.char((string.byte(p1) - 32 + (p3 and -p2 or p2)) % 95 + 32);
+        end;
+        local l__RemoteEvent__2 = l__Events__3:WaitForChild("RemoteEvent");
+        local function u3(p4, p5, p6)
+            local v5 = "";
+            for v6 = 1, #p4 do
+                if v6 <= #p4 - p5[5] or not p6 then
+                    for v7 = 0, 3 do
+                        if v6 % 4 == v7 then
+                            v5 = v5 .. u1(string.sub(p4, v6, v6), p5[v7 + 1], p6);
+                            break;
+                        end;
+                    end;
+                end;
+            end;
+            if not p6 then
+                for v8 = 1, p5[5] do
+                    v5 = v5 .. string.char(string.byte(p4) - string.byte(tostring(v8)));
+                end;
+            end;
+            return v5;
+        end;
+        local l__HttpService__4 = game:GetService("HttpService");
+        local l__RemoteFunction__7 = l__Events__3:WaitForChild("RemoteFunction");
+        local v10 = {};
+        for v11, v12 in pairs(l__ReplicatedStorage__1:WaitForChild("Packages"):GetChildren()) do
+            if not v12:IsA("PackageLink") then
+                if v10[v12.Name] then
+                    error("Attempted to load two or more packages by the same name (" .. v12 .. ")");
+                end;
+                v10[v12.Name] = v12;
+            end;
+        end;
+        local function u8()
+            local v13 = {};
+            v13.__index = v13;
+            function v13.new()
+                return setmetatable({}, v13);
+            end;
+            function v13.FireServer(p7, ...)
+                l__RemoteEvent__2:FireServer(u3(l__HttpService__4:JSONEncode({ string_key, ... }), l__HttpService__4:JSONDecode(num_key)));
+            end;
+            function v13.InvokeServer(p8, ...)
+                return l__RemoteFunction__7:InvokeServer(u3(l__HttpService__4:JSONEncode({ string_key, ... }), l__HttpService__4:JSONDecode(num_key)));
+            end;
+            function v13.OnEvent(p9, p10)
+                l__RemoteEvent__2.OnClientEvent:Connect(function(p11, ...)
+                    if p10[p11] then
+                        p10[p11](...);
+                    end;
+                end);
+            end;
+            function v13.OnFunction(p12, p13)
+                function l__RemoteFunction__7.OnClientInvoke(p14, ...)
+                    if not p13[p14] then
+                        return;
+                    end;
+                    return p13[p14](...);
+                end;
+            end;
+            return v13.new();
+        end;
+        import = function(...)
+            local v14 = {};
+            for v15, v16 in pairs({ ... }) do
+                if v16 == "network" then
+                    table.insert(v14, v15, u8());
+                elseif v10[v16] then
+                    table.insert(v14, v15, require(v10[v16]));
+                else
+                    error("Attempted to import an unknown package (" .. v16 .. "), " .. debug.traceback());
+                end;
+            end;
+            return unpack(v14);
+        end;
+        syn.set_thread_identity(last_identity);
+        task.wait();
+    end;
+    ok("Flux emulator running")
+    getgenv(0).__import = import
+
+    local network = import("network")
+
+    function forceQueue(playlist)
+        if playlist then
+            network:InvokeServer("RequestServer", "EnterQueue", playlist)
+        else
+            network:InvokeServer("RequestServer", "LeaveQueue")
+        end
+    end
+    function invite(userId)
+        network:InvokeServer("RequestServer", "SendInvite", userId)
+    end
+
+    function forceShoot(character)
+        local head = character and character:FindFirstChild("Head")
+        if character and head and currentGun then
+            currentGun:Discharge()
+        end
+    end
+
+    do
+        local tweenservice = game:GetService("TweenService")
+        function teleportToNearest()
+            local char = localplayer.Character
+            local tchar = target and target.Character
+            if char and tchar then
+                local hrp = char and char.HumanoidRootPart
+                local targetpos = tchar.HumanoidRootPart.CFrame
+                tweenservice:Create(hrp, TweenInfo.new(0.75), { CFrame = targetpos }):Play()
+            end
+        end
+    end
+
+    info("Getting ui library")
+    local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/MeenoWare/RageUI/main/UI/loader", true))()
+    -- silent target
+    local onCircleStateUpdated do
+        local circle = Drawing.new('Circle') do
+            circle.Visible = false;
+            circle.Color = Color3.new(1, 1, 1)
+            circle.Thickness = 1;
+            circle.Transparency = 1;
+        end
+        function onCircleStateUpdated(state)
+            if type(state) == 'boolean' then
+                circle.Visible = state;
+            elseif type(state) == 'number' then
+                circle.Radius = state
+            elseif typeof(state) == 'Color3' then
+                circle.Color = state;
+            end
+        end
+        runservice.Heartbeat:Connect(function()
+            local vps = workspace.CurrentCamera.ViewportSize
+            local origin = Vector2.new(vps.X / 2, vps.Y / 2)
+            circle.Position = origin
+            circle.Visible = o.usefov and not isInMenu
+            local targets = {};
+            local cCharacter = localplayer.Character
+            if (not cCharacter) then
+                return
+            end
+            for _, plr in pairs(players:GetPlayers()) do
+                if plr == localplayer then
+                    continue
+                end
+
+                local character = plr.Character;
+                local humanoid = (character and character:FindFirstChildWhichIsA('Humanoid'))
+                local head = (character and character:FindFirstChild('Head'))
+
+                if (not humanoid) or (not head) or (humanoid.Health <= 0) or ((not plr.Neutral) and (plr.Team == localplayer.Team)) then
+                    continue
+                end
+
+                local vector, visible = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
+                if (not visible) then
+                    continue
+                end
+
+                local vector = Vector2.new(vector.X, vector.Y)
+                local distance = math.floor((vector - origin).magnitude)
+
+                if o.usefov then
+                    if distance > o.silentfov then
+                        continue
+                    end
+                end
+
+                targets[#targets + 1] = { plr, distance }
+            end
+
+            table.sort(targets, function(a, b) return a[2] < b[2] end)
+
+            local _target = targets[1]
+            if _target then
+                target = _target[1]
+            else
+                target = nil
+            end
+        end)
+    end
+
+    local ui = library:CreateWindow("MeenoWare 01/07/22")
+    if isInMenu then--[[
+        local menu = ui:AddFolder("Menu")
+        menu:AddList({
+            text = "Queue Playlist",
+            values = {
+                "5v5",
+                "2v2",
+                "Ranked",
+                "PvE"
+            },
+            value = o.lobby.autoqueuemode,
+            callback = function(option)
+                o.lobby.autoqueuemode = option
+            end
+        })
+        local first = true
+        menu:AddToggle({
+            text = "Auto-Queue",
+            state = o.lobby.do_autoqueue,
+            callback = function(value)
+                o.lobby.do_autoqueue = value
+                if not first then
+                    if o.lobby.do_autoqueue then
+                        forceQueue(o.lobby.autoqueuemode)
+                    else
+                        forceQueue()
+                    end
+                end
+                first = false
+            end
+        })
+        menu:AddSlider({
+            text = "Auto Queue Timeout",
+            min = 5,
+            max = 120,
+            value = o.lobby.autoqueuetimeout,
+            callback = function(v) o.lobby.autoqueuetimeout = v end
+        })
+        menu:AddBox({
+            text = "User ID",
+            value = o.lobby.invitespam_uid,
+            callback = function(value)
+                _, o.lobby.invitespam_uid = pcall(tonumber, value)
+            end
+        })
+        menu:AddToggle({
+            text = "Invite Spam",
+            state = o.lobby.do_invitespam,
+            callback = function(value) o.lobby.do_invitespam = value end
+        })
+        menu:AddToggle({
+            text = "Auto-Skip Intro",
+            state = o.lobby.skip_intro,
+            callback = function(value) o.lobby.skip_intro = value end
+        })
+        menu:AddToggle({
+            text = "Spoof ELO (local)",
+            state = o.lobby.spoof_elolocal,
+            callback = function(value) o.lobby.spoof_elolocal = value end
+        })--]]
+    else --//IN GAME
+        info("Hooking Flux modules")
+        --//localscript
+        local current_identity = syn.get_thread_identity()
+        info("Spoofing LocalScript")
+        syn.set_thread_identity(2) task.wait()
+        info("Hooking flux classes")
+        local FirearmInventory, ProjectileClass do
+            info("Hooking FirearmInventory")
+            FirearmInventory = require(WaitForModule("FirearmInventory"))
+            local oldDischarge1 = FirearmInventory.Discharge
+            FirearmInventory.Discharge = function(self, ...)
+                currentGun = self
+                return oldDischarge1(self, ...)
+            end
+            local oldActivateState = FirearmInventory.ActivateState
+            FirearmInventory.ActivateState = function(self, ...)
+                currentGun = self
+                return oldActivateState(self, ...)
+            end
+            local oldNew = FirearmInventory.new
+            FirearmInventory.new = function(...)
+                local newGun = oldNew(...)
+                currentGun = newGun
+                return currentGun
+            end
+            info("Hooking ProjectileClass")
+            ProjectileClass = require(WaitForModule("ProjectileClass"))
+            local oldProjectileNew = ProjectileClass.new
+            ProjectileClass.new = function(...)
+                local args = {...}
+                if o.do_silentaim or auto_target then
+                    local char = auto_target or target and target.Character
+                    local part = char and char:FindFirstChild("Head")
+                    local campos = workspace.CurrentCamera.CFrame.Position
+                    if char and part and (args[1].Position - campos).Magnitude < 5 then
+                        args[1] = CFrame.new(campos, part.Position)
+                    end
+                end
+                return oldProjectileNew(unpack(args))
+            end
+            info("Hooking CameraService")
+            local CameraService = require(WaitForModule("CameraService"))
+            local oldCameraActivate = CameraService.Activate
+            CameraService.Activate = function(self, method, val, ...)
+                if method == "Recoil" then
+                    val = val * ((100 - o.mod_recoil) / 100)
+                end
+                return oldCameraActivate(self, method, val, ...)
+            end
+            info("Hooking ServerClass")
+            local ServerClass = require(WaitForModule("server"))
+            local oldGet = ServerClass.Get
+            ServerClass.Get = function(self, value, ...)
+                if o.do_alwayscanshoot then
+                    if value == "FREEZE_PLAYERS" then
+                        return false
+                    elseif value == "SHOOTING_ENABLED" then
+                        return true
+                    end
+                end
+                return oldGet(self, value, ...)
+            end
+        end
+        ok("Hooked")
+        --//corescript
+        info("Identity restored")
+        syn.set_thread_identity(current_identity) task.wait()
+        --// visuals
+        coroutine.wrap(function()
+            if not game:IsLoaded() then game.Loaded:Wait() end
+            local character_folder = workspace:WaitForChild("Characters")
+            local outlines = {}
+            local function remove_outline(character)
+                if outlines[character] then
+                    pcall(game.Destroy, outlines[character][1])
+                    outlines[character] = nil
+                end
+            end
+            local function add_outline(character)
+                if character:IsA("Model") then
+                    local plr = players:FindFirstChild(character.Name)
+                    if plr == localplayer then return end
+                    local outline = Instance.new("Highlight")
+                    outline.FillTransparency = 1
+                    outline.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    local player_team = plr and plr.Team
+                    local is_teammate = player_team == localplayer.Team
+                    outline.OutlineColor = is_teammate and o.esp_teamcolor or o.esp_enemycolor
+                    outline.OutlineTransparency = 0.2
+                    outline.Adornee = character
+                    outline.Parent = coregui_parent
+                    local humanoid = character:WaitForChild("Humanoid")
+                    humanoid.Died:Connect(function()
+                        pcall(game.Destroy, outline)
+                    end)
+                    outlines[character] = { outline, is_teammate, character, humanoid }
+                end
+            end
+            if isOpenWorld then
+                local function add_npc_outline(character)
+                    if character:IsA("Model") then
+                        local outline = Instance.new("Highlight")
+                        outline.FillTransparency = 1
+                        outline.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        outline.OutlineColor = Color3.new(1, 0, 0)
+                        outline.OutlineTransparency = 0.2
+                        outline.Adornee = character
+                        outline.Parent = coregui_parent
+                        local humanoid = character:WaitForChild("Humanoid")
+                        humanoid.Died:Connect(function()
+                            pcall(game.Destroy, outline)
+                        end)
+                    end
+                end
+                local enemies_folder = workspace:WaitForChild("Enemies")
+                enemies_folder.ChildAdded:Connect(add_npc_outline)
+                for _, child in pairs(enemies_folder:GetChildren()) do
+                    pcall(add_npc_outline, child)
+                end
+            else
+                character_folder.ChildAdded:Connect(add_outline)
+                character_folder.ChildRemoved:Connect(remove_outline)
+                for _, child in pairs(character_folder:GetChildren()) do
+                    add_outline(child)
+                end
+                while task.wait() do
+                    for i = 1, #outlines do
+                        local outline = outlines[i]
+                        local is_visible = visible_characters[outline[3]]
+                        outline[1].OutlineColor = (o.esp_highlighttarget and target and target.Character == outline[3] and o.esp_highlightcolor)
+                                                or (outline[2] and o.esp_teamcolor)
+                                                or (is_visible and o.esp_visiblecolor or o.esp_enemycolor)
+                    end
+                end
+            end
+        end)()
+        --
+        --
+        local visuals = ui:AddFolder("Visuals")
+        local movement = ui:AddFolder("Movement")
+        local aim = ui:AddFolder("Aim")
+        local mods = ui:AddFolder("Gun Mods")
+        local misc = ui:AddFolder("Misc")
+        
+        visuals:AddToggle({
+            text = "Enable Outlines",
+            state = o.do_esp,
+            callback = function(v) o.do_esp = v end
+        })
+        visuals:AddColor({
+            text = "Enemy Color",
+            color = { o.esp_enemycolor.r, o.esp_enemycolor.g, o.esp_enemycolor.b },
+            callback = function(v) o.esp_enemycolor = v end
+        })
+        visuals:AddColor({
+            text = "Visible Color",
+            color = { o.esp_visiblecolor.r, o.esp_visiblecolor.g, o.esp_visiblecolor.b },
+            callback = function(v) o.esp_visiblecolor = v end
+        })
+        visuals:AddColor({
+            text = "Team Color",
+            color = { o.esp_teamcolor.r, o.esp_teamcolor.g, o.esp_teamcolor.b },
+            callback = function(v) o.esp_teamcolor = v end
+        })
+        visuals:AddToggle({
+            text = "Highlight Target",
+            state = o.esp_highlighttarget,
+            callback = function(v) o.esp_highlighttarget = v end
+        })
+        visuals:AddColor({
+            text = "Highlight Color",
+            color = {  o.esp_highlightcolor.r, o.esp_highlightcolor.g, o.esp_highlightcolor.b },
+            callback = function(v) o.esp_highlightcolor = v end
+        })
+        visuals:AddColor({
+            text = "FOV Circle Color",
+            color = o.fovcolor,
+            callback = function(v) o.fovcolor = v onCircleStateUpdated(v) end
+        }) onCircleStateUpdated(o.fovcolor)
+        visuals:AddSlider({
+            text = "Field Of View",
+            value = o.fov,
+            min = 70,
+            max = 120,
+            callback = function(v) o.fov = v end
+        })
+        visuals:AddToggle({
+            text = "Full Bright",
+            value = o.do_fullbright,
+            callback = function(v) o.do_fullbright = v end
+        })
+        visuals:AddToggle({
+            text = "Rainbow Environment",
+            state = o.do_rainbowsky,
+            callback = function(v) o.do_rainbowsky = v end
+        })
+
+        aim:AddToggle({
+            text = "Use FOV",
+            state = o.usefov,
+            callback = function(v) o.usefov = v onCircleStateUpdated(v) end
+        }) onCircleStateUpdated(o.usefov)
+        aim:AddSlider({
+            text = "FOV",
+            value = o.silentfov,
+            min = 0,
+            max = 900,
+            callback = function(v) o.silentfov = v onCircleStateUpdated(v) end
+        }) onCircleStateUpdated(o.silentfov)
+        aim:AddToggle({
+            text = "Silent Aim",
+            state = o.do_silentaim,
+            callback = function(v) o.do_silentaim = v end
+        })
+        aim:AddToggle({
+            text = "Aimbot",
+            state = o.do_aimbot,
+            callback = function(v) o.do_aimbot = v end
+        })
+        aim:AddBind({
+            text = "Aimbot Key",
+            key = "Q",
+            dual = false,
+            hold = true,
+            callback = function(released)
+                aimKeyDown = not released
+            end
+        })
+        aim:AddBind({
+            text = "Force Shoot",
+            key = "B",
+            dual = false,
+            hold = true,
+            callback = function()
+                if currentGun then
+                    currentGun:Discharge()
+                end
+            end
+        })
+
+        movement:AddSlider({
+            text = "Speed",
+            min = 14,
+            max = 200,
+            dual = false,
+            value = o.walkspeed,
+            callback = function(value) o.walkspeed = value end
+        })
+        movement:AddToggle({
+            text = "Run & Shoot",
+            state = o.do_runandshoot,
+            callback = function(value) o.do_runandshoot = value end
+        })
+        movement:AddList({
+            text = "Anti-Aim",
+            value = o.spinbot,
+            values = { "Off", "Spin", "Backwards" },
+            callback = function(v) o.spinbot = v end
+        })
+        local lastPos
+        movement:AddBind({
+            text = "Boost Forward",
+            key = "F",
+            hold = true,
+            callback = function()
+                local char = localplayer.Character
+                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                local targetpos = (workspace.CurrentCamera.CFrame.LookVector * 200)
+                                + Vector3.new(0, 20, 0)
+                if hrp then
+                    hrp.Velocity = targetpos
+                end
+            end
+        })
+        movement:AddBind({
+            text = "Boost Up",
+            key = "X",
+            hold = false,
+            callback = function()
+                local char = localplayer.Character
+                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    hrp.Velocity = Vector3.new(0, 80, 0)
+                end
+            end
+        })
+        local tpInProgress = false
+        movement:AddBind({
+            text = "Teleport To Player",
+            key = "Z",
+            hold = false,
+            callback = function()
+                local char = localplayer.Character
+                local tchar = target and target.Character
+                if char and tchar and not tpInProgress then
+                    tpInProgress = true
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    local targetpos = tchar:FindFirstChild("HumanoidRootPart")
+                    if targetpos then
+                        game:GetService("TweenService"):Create(hrp, TweenInfo.new(0.25), { CFrame = targetpos.CFrame }):Play()
+                        task.wait(0.25)
+                    end
+                    tpInProgress = false
+                end
+            end
+        })
+
+        mods:AddSlider({
+            text = "Recoil Reduction",
+            min = 0,
+            max = 100,
+            dual = false,
+            value = o.mod_recoil,
+            callback = function(value) o.mod_recoil = value end
+        })
+        mods:AddSlider({
+            text = "RPM",
+            min = 150,
+            max = 9999,
+            dual = false,
+            value = o.mod_rpm,
+            callback = function(value) o.mod_rpm = value end
+        })
+        mods:AddSlider({
+            text = "Bullet Velocity",
+            min = 150,
+            max = 9999,
+            dual = false,
+            value = o.mod_velocity,
+            callback = function(value) o.mod_velocity = value end
+        })
+        mods:AddSlider({
+            text = "Bullet Range",
+            min = 150,
+            max = 9999,
+            dual = false,
+            value = o.mod_range,
+            callback = function(value) o.mod_range = value end
+        })
+        mods:AddToggle({
+            text = "Always Auto",
+            state = o.do_alwaysauto,
+            callback = function(value) o.do_alwaysauto = value end
+        })
+        mods:AddToggle({
+            text = "Always Allow Shooting",
+            state = o.do_alwayscanshoot,
+            callback = function(value) o.do_alwayscanshoot = value end
+        })
+
+        misc:AddBox({
+            text = "Message",
+            value = o.chatspam_message,
+            callback = function(value) o.chatspam_message = value end
+        })
+        misc:AddToggle({
+            text = "Chat Spammer",
+            state = o.do_chatspam,
+            callback = function(value)
+                o.do_chatspam = value
+            end
+        })
+        misc:AddToggle({
+            text = "Auto Reload",
+            state = o.do_autoreload,
+            callback = function(value) o.do_autoreload = value end
+        })
+        misc:AddToggle({
+            text = "Auto Shoot",
+            state = o.do_autoshoot,
+            callback = function(value) o.do_autoshoot = value end
+        })
+        misc:AddList({
+            text = "Auto Shoot Mode",
+            value = o.autoshoot_mode,
+            values = { "Internal", "Network" },
+            callback = function(value) o.autoshoot_mode = value end
+        })
+        --[[
+        misc:AddList({
+            text = "Gun",
+            value = o.primary_weapon,
+            values = weapons,
+            callback = function(v) o.primary_weapon = v end
+        })
+        misc:AddButton({
+            text = "Set Primary Weapon",
+            callback = function()
+                network:FireServer("setItem", "1", "primary", o.primary_weapon)
+            end
+        })--]]
+    end
+    ui:AddToggle({
+        text = "Debug Mode",
+        state = o.do_debug,
+        callback = function(value)
+            o.do_debug = value
+        end
+    })
+    ui:AddButton({
+        text = "Rejoin",
+        callback = function() rejoin(true) end
+    })
+    ui:AddButton({
+        text = "Join Discord",
+        callback = loadstring(game:HttpGet("https://raw.githubusercontent.com/MeenoWare/Discord/main/include"))()
+    })
+    ui:AddButton({
+        text = "Save Options",
+        callback = saveOptions
+    })
+
+    library:Init()
+    ---------------------------------------------------
+    local genv = getgenv(0)
+    local function forceFire(part)
+        local base_id = httpservice:GenerateGUID(false)
+        local from_pos = workspace.CurrentCamera.CFrame.Position
+        local pos = part.CFrame:PointToObjectSpace(from_pos)
+        network:FireServer("ActivateInventory", "Discharge", base_id, 0, { { from_pos.X, from_pos.Y, from_pos.Z } })
+        for i = 1, 5 do
+            network:FireServer("ReplicateBullet", base_id .. tostring(i - 1), part:GetFullName(), { pos.X, pos.Y, pos.Z })
+        end
+    end
+    task.spawn(function() --// blocking/sync thread
+        local lastBulletTick = tick()
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Blacklist
+        while runservice.RenderStepped:Wait() do
+            params.FilterDescendantsInstances = { workspace:WaitForChild("Raycast"), currentGun and currentGun.Model or nil }
+            if not isOpenWorld then
+                for _, plr in pairs(players:GetPlayers()) do
+                    if plr == localplayer or plr.Team == localplayer.Team then continue end
+                    local char = plr.Character
+                    local head = char and char:FindFirstChild("Head")
+                    local humanoid = char and char:FindFirstChildWhichIsA("Humanoid")
+                    if o.do_autoshoot and currentGun and currentGun._alive and currentGun._config.Ammo.active > 0 then
+                        if char and head and humanoid and humanoid.Health > 0 then
+                            local camcf = workspace.CurrentCamera.CFrame
+                            local ray_start = camcf.Position + (camcf.LookVector * 5)
+                            local ray_end = head.Position
+                            local ray = workspace:Raycast(ray_start, CFrame.new(ray_start, ray_end).LookVector * 5e3, params)
+                            if ray and ray.Instance and (ray.Instance == head or ray.Instance:IsDescendantOf(char)) then
+                                visible_characters[char] = true
+                                if tick() - lastBulletTick > 0.05  then
+                                    auto_target = char
+                                    if o.autoshoot_mode == "Internal" then
+                                        pcall(currentGun.Discharge, currentGun)
+                                    elseif o.autoshoot_mode == "Network" then
+                                        forceFire(ray.Instance)
+                                        currentGun._config.Ammo.active -= 1
+                                        currentGun:_hud()
+                                    end
+                                    lastBulletTick = tick()
+                                end
+                            else
+                                visible_characters[char] = false
+                                auto_target = nil
+                            end
+                        end
+                    end
+                end
+            else
+                for _, char in pairs(workspace:WaitForChild("Enemies"):GetChildren()) do
+                    local head = char and char:FindFirstChild("Head")
+                    local humanoid = char and char:FindFirstChildWhichIsA("Humanoid")
+                    if o.do_autoshoot and currentGun and currentGun._alive and currentGun._config.Ammo.active > 0 then
+                        if char and head and humanoid and humanoid.Health > 0 then
+                            local camcf = workspace.CurrentCamera.CFrame
+                            local ray_start = camcf.Position + (camcf.LookVector * 5)
+                            local ray_end = head.Position
+                            local ray = workspace:Raycast(ray_start, CFrame.new(ray_start, ray_end).LookVector * 5e3, params)
+                            if ray and ray.Instance and (ray.Instance == head or ray.Instance:IsDescendantOf(char)) then
+                                visible_characters[char] = true
+                                if tick() - lastBulletTick > 0.05  then
+                                    auto_target = char
+                                    if o.autoshoot_mode == "Internal" then
+                                        pcall(currentGun.Discharge, currentGun)
+                                    elseif o.autoshoot_mode == "Network" then
+                                        forceFire(ray.Instance)
+                                        currentGun._config.Ammo.active -= 1
+                                        currentGun:_hud()
+                                    end
+                                    lastBulletTick = tick()
+                                end
+                            else
+                                visible_characters[char] = false
+                                auto_target = nil
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    local rainbow_color = Color3.new(1, 1, 1)
+    task.spawn(function()
+        while task.wait() do
+            for i=0,1,0.001 do
+                rainbow_color = Color3.fromHSV(i, 1, 1)
+                task.wait()
+            end
+        end
+    end)
+    runservice.RenderStepped:Connect(function(frame) --// nonblocking/async thread
+        local err, msg = pcall(function()
+        genv.__weapon = currentGun
+        if o.lobby.do_invitespam and isInMenu then
+            invite(o.lobby.invitespam_uid)
+        end
+        if not isInMenu then
+            if o.do_rainbowsky then
+                for _, sky in ipairs(lighting:GetChildren()) do
+                    if sky:IsA("Sky") then
+                        sky.SkyboxBk             = "rbxassetid://8694485972"
+                        sky.SkyboxDn             = "rbxassetid://8694485972"
+                        sky.SkyboxFt             = "rbxassetid://8694485972"
+                        sky.SkyboxLf             = "rbxassetid://8694485972"
+                        sky.SkyboxRt             = "rbxassetid://8694485972"
+                        sky.SkyboxUp             = "rbxassetid://8694485972"
+                        sky.CelestialBodiesShown = false
+                        sky.StarCount            = 0
+                    end
+                end
+                lighting.Ambient        = rainbow_color
+                lighting.ColorShift_Top = rainbow_color
+            end
+            local Character = localplayer.Character
+            local Humanoid = Character and Character:FindFirstChildWhichIsA("Humanoid")
+            local Camera = workspace.CurrentCamera
+            if o.do_bhop and Humanoid then
+                Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+            end
+            if o.walkspeed ~= 14 and Humanoid then
+                Humanoid.WalkSpeed = o.walkspeed
+            end
+            if currentGun and currentGun._alive then
+                local _config = currentGun._config
+                local _controller = currentGun._controller
+                if _config and _controller and _config.Tune then
+                    local Tune = _config.Tune
+                    if o.bullet_multiplier > 1 then
+                        Tune.Bullets = o.bullet_multiplier
+                    end
+                    if o.mod_rpm ~= 800 then
+                        Tune.RPM = o.mod_rpm
+                    end
+                    if o.mod_velocity ~= 1500 then
+                        Tune.Velocity = o.mod_velocity
+                    end
+                    if o.mod_range ~= 1340 then
+                        Tune.Range = o.mod_range
+                    end
+                    if o.do_runandshoot then
+                        currentGun._ads = false
+                        currentGun._controller.Running = false
+                        currentGun._active = false
+                        currentGun._reloading = false
+                    end
+                    if o.do_alwaysauto then
+                        if (not table.find(Tune.Firemodes, 1)) or (_config.Mode ~= 1) then
+                            Tune.Firemodes[1] = 1
+                            _config.Mode = 1
+                            pcall(currentGun.Firemode, currentGun)
+                        end
+                    end
+                    if o.do_autoreload then
+                        if _config.Ammo.active < Tune.Ammo / 5 then
+                            --pcall(currentGun._reload, currentGun)
+                            network:FireServer("ActivateInventory", "Reload")
+                        end
+                    end
+                    if o.spinbot and o.spinbot ~= "Off" then
+                        if o.spinbot == "Spin" then
+                            local look_y = _controller.Looking.Y
+                            _controller.Looking = Vector2.new(0, look_y < 360 and (look_y + 2) or 0)
+                        elseif o.spinbot == "Backwards" then
+                            _controller.Looking = Vector2.new(-1.4, -440)
+                        end
+                    end
+                end
+            end
+            if o.do_chatspam and frame % 60 == 0 then
+                network:FireServer("PlayerChat", o.chatspam_message, true, "000")
+            end
+            if o.do_noclip then
+                if Character then
+                    Character.Head.Anchored = true
+                else
+                    Character.Head.Anchored = false
+                end
+            end
+            if o.fov ~= 70 then
+                Camera.FieldOfView = o.fov
+            end
+            if o.do_forceshoot and target then
+                forceShoot(target)
+            end
+            if o.do_aimbot and aimKeyDown and Camera then
+                local pos = Vector3.new(0, 0, 0)
+                if target and target.Character and target.Character:FindFirstChild("Head") then
+                    --local w2s_part = W2S(Camera, target.Position)
+                    pos = target.Character.Head.CFrame.Position
+                    --mousemoveabs(w2s_part.X, w2s_part.Y)
+                else
+                    pos = Camera.Focus.Position - Vector3.new(0, 100, 0)
+                end
+                Camera.CFrame = CFrame.new(Camera.Focus.Position, pos)
+            end
+            if o.do_fullbright then
+                lighting.ClockTime = 14
+            end
+        end
+    end)
+    if not err then
+        warn(msg)
+    end
+    end)
+
+    if isInMenu and o.lobby.do_autoqueue then
+        --[[task.spawn(function()
+            local prompt = game:GetService("CoreGui"):WaitForChild("RobloxPromptGui")
+            runservice.Heartbeat:Connect(function()
+                pcall(function()
+                    prompt:FindFirstChild("ErrorMessage", true).Text = "PLEASE NOTE: Even if you remain in the menu, you will still be queueing for a match"
+                    prompt:FindFirstChild("ErrorTitle", true).Text = "MeenoWare"
+                    prompt:FindFirstChild("ButtonText", true).Text = "Ok :3"
+                end)
+            end)
+            local function queue()
+                teleportservice:TeleportToPlaceInstance(game.PlaceId, "thisFailsLol", localplayer) -- force failed teleport
+                forceQueue(o.lobby.autoqueuemode)
+            end
+            while task.wait(1) do
+                if not foundMatch then
+                    queue()
+                end
+                task.wait(o.lobby.autoqueuetimeout)
+            end
+        end)--]]
+        forceQueue(o.lobby.autoqueuemode)
+    end
+
+    --// Finalize
+    ok("MeenoWare loaded!", "(" .. tostring(os.time() - startTime) .. "s)")
+    game:GetService("StarterGui"):SetCore("SendNotification", { Title = "Welcome to MeenoWare", Text = "Made by rileyisfit#2222", Image = "" })
+end))
